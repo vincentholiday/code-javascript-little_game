@@ -22,8 +22,10 @@
 }
 </style>
 	<div id="input_div">
-		<input type="text" style='display: inline;' id="input_text" value="" maxlength="10" autofocus>
-		<button id="input_button" style='display: inline;' onclick="theController.enterMove()">Enter move!</button>
+		<button id="select_o_button" style='display: inline;' onclick="theController.selcetSideO()">Select Side 'O'</button>
+		<button id="select_x_button" style='display: inline;' onclick="theController.selcetSideX()">Select Side 'X'</button>
+		<input type="text" style='display: none;' id="input_text" value="" maxlength="10" autofocus>
+		<button id="input_button" style='display: none;' onclick="theController.enterMove()">Enter move!</button>
 		<button id="reset_button" style='display: none;' onclick="theController.resetGame()">Again!</button>
 	</div>
 	<div id='tic_tac_toe_message'></div>

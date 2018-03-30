@@ -12,6 +12,12 @@ var theBoard = {
 		'low-M' : '=',
 		'low-R' : '='
 	},
+	getOppositeTurn : function(turn) {
+		if (turn == 'X')
+			return 'O';
+		else
+			return 'X';
+	},
 	writeln : function(str) {
 		var ele = document.getElementById("tic_tac_toe_message");
 		ele.innerHTML = str;
@@ -88,17 +94,30 @@ var theBoard = {
 		}
 		return true;
 	},
-	isValidInput : function(move) {
-		if (move && move != '') {
-			move = move.trim();
-			if (move in this.boardData)
-				if (this.boardData[move] == this.space) { // 下的是空格
-					this.move = move;
+	/**
+	 * is the name of the position is correct
+	 */
+	isValidInput : function(movePos) {
+		if (movePos && movePos != '') {
+			movePos = movePos.trim();
+			if (movePos in this.boardData)
+				if (this.boardData[movePos] == this.space) { // 下的是空格
 					return true;
 				}
 		}
 
 		return false;
+	},
+	showSelectSideButton : function(bool) {
+		var selectObutton = document.getElementById("select_o_button");
+		var selectXbutton = document.getElementById("select_x_button");
+		if (bool) {
+			selectObutton.style.display = 'inline';
+			selectXbutton.style.display = 'inline';
+		} else {
+			selectObutton.style.display = 'none';
+			selectXbutton.style.display = 'none';
+		}
 	},
 	showResetButton : function(bool) {
 		var resetButton = document.getElementById("reset_button");
@@ -123,24 +142,56 @@ var theBoard = {
 };
 
 var tttAI = {
-	stupidAI : {
-		/**
-		 * return a best move position
-		 */
-		queryBestMove : function(turn, move, boardData) {
-			// 下了就會贏的
-			// 阻止別人贏
-			// 隨機找一個點下
+	/**
+	 * return a best move position
+	 */
+	queryNormalAIBestMove : function(turn, boardData) {
+		boardData = Object.assign({}, boardData); // real copy
+		// if win by one step
+		for ( var key in boardData) {
+			if (boardData[key] == theBoard.space) {
+				boardData[key] = turn;
+				if (theBoard.isWon(boardData, turn)) {
+					return key;
+				}
+				boardData[key] = theBoard.space;
+			}
 		}
+		// stop the opponenet from winning
+		var oppTurn = theBoard.getOppositeTurn(turn);
+		for ( var key in boardData) {
+
+			if (boardData[key] == theBoard.space) {
+				boardData[key] = oppTurn;
+				if (theBoard.isWon(boardData, oppTurn)) {
+					return key;
+				}
+				boardData[key] = theBoard.space;
+			}
+		}
+		// random
+		var keyArray = [];
+		for ( var key in boardData) {
+			if (boardData[key] == theBoard.space) {
+				keyArray.push(key);
+			}
+		}
+		var freeSpaceLen = keyArray.length;
+		var ranInt = Math.floor(Math.random() * freeSpaceLen);
+		return keyArray[ranInt];
 	}
 };
 
 var theController = {
+	playerTurn : 'O',
+	/**
+	 * move by the user
+	 */
 	enterMove : function() {
-		var move = document.getElementById("input_text").value;
+		var movePos = document.getElementById("input_text").value;
 
-		if (theBoard.isValidInput(move)) {
-			this.move();
+		if (theBoard.isValidInput(movePos)) { // verify input
+			this.move(movePos);
 		} else {
 			theBoard
 					.writeln('The move is invalid, please enter your move correctly!');
@@ -149,8 +200,8 @@ var theController = {
 	/**
 	 * move and after move
 	 */
-	move : function() {
-		theBoard.boardData[theBoard.move] = theBoard.turn; // 下了一步
+	move : function(movePos) {
+		theBoard.boardData[movePos] = theBoard.turn; // 下了一步
 
 		if (theBoard.isWon(theBoard.boardData, theBoard.turn)) {
 			// won
@@ -161,10 +212,8 @@ var theController = {
 			theBoard.showResetButton(true);
 		} else {
 			// no winner
-			if (theBoard.turn == 'X')
-				theBoard.turn = 'O';
-			else
-				theBoard.turn = 'X';
+			// change turn
+			theBoard.turn = theBoard.getOppositeTurn(theBoard.turn);
 			theBoard.printBoard();
 			if (theBoard.isBoardFull()) {
 				theBoard.writeln('The board is full, so game stopped!');
@@ -173,6 +222,13 @@ var theController = {
 			} else {
 				theBoard.writeln('Turn for ' + theBoard.turn
 						+ '. Move on which space...');
+				if (theBoard.turn != this.playerTurn) {
+
+					var bestMove = tttAI.queryNormalAIBestMove(theBoard.turn,
+							theBoard.boardData);
+					this.move(bestMove);
+
+				}
 			}
 		}
 	},
@@ -180,8 +236,26 @@ var theController = {
 		theBoard.clearData();
 		theBoard.clearBoard();
 		theBoard.showResetButton(false);
-		theBoard.showInputButton(true);
+		theBoard.showInputButton(false);
+		theBoard.showSelectSideButton(true);
 		theBoard.writeln('Turn for ' + theBoard.turn + '. Move on which space');
+	},
+	selcetSideO : function() {
+		theBoard.showResetButton(false);
+		theBoard.showInputButton(true);
+		theBoard.showSelectSideButton(false);
+		this.playerTurn = 'O';
+		theBoard.writeln('Turn for ' + theBoard.turn + '. Move on which space');
+	},
+	selcetSideX : function() {
+		theBoard.showResetButton(false);
+		theBoard.showInputButton(true);
+		theBoard.showSelectSideButton(false);
+		this.playerTurn = 'X';
+		theBoard.writeln('Turn for ' + theBoard.turn + '. Move on which space');
+		var bestMove = tttAI.queryNormalAIBestMove(theBoard.turn,
+				theBoard.boardData);
+		this.move(bestMove);
 	}
 };
 
@@ -202,10 +276,6 @@ function gamestart() {
 			// Trigger the button element with a click
 			inputButton.click();
 		}
-	});
-
-	resetButton.addEventListener("click", function(event) {
-		theController.resetGame();
 	});
 
 	theBoard.printBoard();
@@ -235,6 +305,38 @@ function makeAAlmostWin() {
 	theBoard.printBoard();
 }
 
+function makeAAlmostLost() {
+	theBoard.boardData = {
+		'top-L' : 'O',
+		'top-M' : 'X',
+		'top-R' : '=',
+		'mid-L' : '=',
+		'mid-M' : 'O',
+		'mid-R' : '=',
+		'low-L' : '=',
+		'low-M' : '=',
+		'low-R' : '='
+	};
+	theBoard.turn = 'X';
+	theBoard.printBoard();
+}
+
+function makeNoOneIsGoingToWin() {
+	theBoard.boardData = {
+		'top-L' : 'O',
+		'top-M' : 'X',
+		'top-R' : '=',
+		'mid-L' : '=',
+		'mid-M' : 'O',
+		'mid-R' : '=',
+		'low-L' : '=',
+		'low-M' : '=',
+		'low-R' : 'X'
+	};
+	theBoard.turn = 'O';
+	theBoard.printBoard();
+}
+
 function makeAAlmostFull() {
 	theBoard.boardData = {
 		'top-L' : 'O',
@@ -249,6 +351,25 @@ function makeAAlmostFull() {
 	};
 	theBoard.turn = 'O';
 	theBoard.printBoard();
+}
+
+function testNormalAI() {
+	makeAAlmostWin();
+	var bestMove = tttAI.queryNormalAIBestMove(theBoard.turn,
+			theBoard.boardData);
+	console.log('expect: ' + 'low-R');
+	console.log('best move: ' + bestMove);
+	console.log('low-R' == bestMove ? "past 'win by one step' "
+			: "not past 'win by one step' ");
+	makeAAlmostLost();
+	bestMove = tttAI.queryNormalAIBestMove(theBoard.turn, theBoard.boardData);
+	console.log('expect: ' + 'low-R');
+	console.log('best move: ' + bestMove);
+	console.log('low-R' == bestMove ? "past 'stop win by one step' "
+			: "not past 'stop win by one step' ");
+	makeNoOneIsGoingToWin();
+	bestMove = tttAI.queryNormalAIBestMove(theBoard.turn, theBoard.boardData);
+	console.log('random step: ' + bestMove);
 }
 
 // test();
