@@ -12,6 +12,36 @@ var theBoard = {
 		'low-M' : '=',
 		'low-R' : '='
 	},
+	boardTds : {},
+	init : function() {
+		// ad td events
+		for (key in this.boardData) {
+			var td = document.getElementById(key);
+			this.boardTds[key] = td;
+			td.addEventListener("click", function(event) {
+				event.preventDefault();
+				console.log('click:' + this.id);
+				theController.clickMove(this.id);
+			});
+		}
+
+		// add button events
+		var resetButton = document.getElementById("reset_button");
+		var selectObutton = document.getElementById("select_o_button");
+		var selectXbutton = document.getElementById("select_x_button");
+		selectObutton.addEventListener("click", function(event) {
+			theController.selcetSideO();
+		});
+		selectXbutton.addEventListener("click", function(event) {
+			theController.selcetSideX();
+		});
+		resetButton.addEventListener("click", function(event) {
+			theController.resetGame();
+		});
+
+		theBoard.printBoard();
+		theBoard.writeTurn();
+	},
 	getOppositeTurn : function(turn) {
 		if (turn == 'X')
 			return 'O';
@@ -22,34 +52,39 @@ var theBoard = {
 		var ele = document.getElementById("tic_tac_toe_message");
 		ele.innerHTML = str;
 	},
-	clearBoard : function() {
-		var ele = document.getElementById("tic_tac_toe_board");
-		ele.innerHTML = '';
-		this.printBoard();
+	writeTurn : function() {
+		this.writeln('Turn for ' + this.turn + '. Move on which space');
 	},
 	clearData : function() {
-		for ( var key in theBoard.boardData) {
-			theBoard.boardData[key] = '=';
+		for ( var key in this.boardData) {
+			this.boardData[key] = '=';
 			this.turn = 'O';
 		}
 	},
-	printBoard : function() {
+	createBoardStr : function() {
 		var tableHead = "<table>";
-		var row1 = "<tr><td>" + this.boardData['top-L'] + "</td><td>"
-				+ this.boardData['top-M'] + "</td><td>"
-				+ this.boardData['top-R'] + "</td></tr>";
-		var row2 = "<tr><td>" + this.boardData['mid-L'] + "</td><td>"
-				+ this.boardData['mid-M'] + "</td><td>"
-				+ this.boardData['mid-R'] + "</td></tr>";
-		var row3 = "<tr><td>" + this.boardData['low-L'] + "</td><td>"
-				+ this.boardData['low-M'] + "</td><td>"
-				+ this.boardData['low-R'] + "</td></tr>";
+		var row1 = "<tr><td id='top-L'>" + this.boardData['top-L']
+				+ "</td><td id='top-M'>" + this.boardData['top-M']
+				+ "</td><td id='top-R'>" + this.boardData['top-R']
+				+ "</td></tr>";
+		var row2 = "<tr><td id='mid-L'>" + this.boardData['mid-L']
+				+ "</td><td id='mid-M'>" + this.boardData['mid-M']
+				+ "</td><td id='mid-R'>" + this.boardData['mid-R']
+				+ "</td></tr>";
+		var row3 = "<tr><td id='low-L'>" + this.boardData['low-L']
+				+ "</td><td id='low-M'>" + this.boardData['low-M']
+				+ "</td><td id='low-R'>" + this.boardData['low-R']
+				+ "</td></tr>";
 		var tableTail = "</table>";
 		var positionStr = "Position: low-L, low-M, low-R, mid-L, mid-M, mid-R, top-L, top-M, top-R";
 		var str = tableHead + row1 + row2 + row3 + tableTail + "<br/>"
 				+ positionStr;
-		var ele = document.getElementById("tic_tac_toe_board");
-		ele.innerHTML = str;
+	},
+	printBoard : function() {
+		for (key in this.boardData) {
+			this.boardTds[key].innerHTML = this.boardData[key];
+		}
+
 	},
 	/**
 	 * 
@@ -127,18 +162,6 @@ var theBoard = {
 			resetButton.style.display = 'none';
 		}
 	},
-	showInputButton : function(bool) {
-		var inputButton = document.getElementById("input_button");
-		var inputText = document.getElementById("input_text");
-		if (bool) {
-			inputButton.style.display = 'inline';
-			inputText.style.display = 'inline';
-		} else {
-			inputButton.style.display = 'none';
-			inputText.style.display = 'none';
-			inputText.value = '';
-		}
-	}
 };
 
 var tttAI = {
@@ -147,6 +170,7 @@ var tttAI = {
 	 */
 	queryNormalAIBestMove : function(turn, boardData) {
 		boardData = Object.assign({}, boardData); // real copy
+
 		// if win by one step
 		for ( var key in boardData) {
 			if (boardData[key] == theBoard.space) {
@@ -169,7 +193,26 @@ var tttAI = {
 				boardData[key] = theBoard.space;
 			}
 		}
-		// random
+		// choose the center
+		if (boardData['mid-M'] == theBoard.space) {
+			return 'mid-M';
+		}
+
+		// choose the corner
+		var corners = [ 'top-L', 'top-R', 'low-L', 'low-R' ];
+		var corLength = corners.length;
+		var availCorArray = [];
+		for (var i = 0; i < corLength; i++) {
+			if (boardData[corners[i]] == theBoard.space) {
+				availCorArray.push(corners[i]);
+			}
+		}
+		if (availCorArray.length > 0) {
+			var ranCorInt = Math.floor(Math.random() * availCorArray.length);
+			return availCorArray[ranCorInt];
+		}
+
+		// random index of the rest postions
 		var keyArray = [];
 		for ( var key in boardData) {
 			if (boardData[key] == theBoard.space) {
@@ -179,49 +222,63 @@ var tttAI = {
 		var freeSpaceLen = keyArray.length;
 		var ranInt = Math.floor(Math.random() * freeSpaceLen);
 		return keyArray[ranInt];
+	},
+	/**
+	 * return a best move position
+	 */
+	querySmartAIBestMove : function(turn, boardData) {
+		// TODO
 	}
 };
 
 var theController = {
-	playerTurn : 'O',
+	playerTurn : '-',// O, X, -
+	isPlayersTurn : function() {
+		return this.playerTurn == theBoard.turn;
+	},
+	gameStop : function() {
+		this.playerTurn = "-";
+		theBoard.showResetButton(true);
+	},
 	/**
 	 * move by the user
 	 */
-	enterMove : function() {
-		var movePos = document.getElementById("input_text").value;
-
-		if (theBoard.isValidInput(movePos)) { // verify input
+	clickMove : function(movePos) {
+		if (theBoard.isValidInput(movePos) && this.isPlayersTurn()) {
 			this.move(movePos);
-		} else {
-			theBoard
-					.writeln('The move is invalid, please enter your move correctly!');
 		}
 	},
 	/**
 	 * move and after move
 	 */
 	move : function(movePos) {
-		theBoard.boardData[movePos] = theBoard.turn; // 下了一步
-
+		movePos = movePos.trim();
+		theBoard.boardData[movePos] = theBoard.turn; // move one step
+		console.log('move to ' + movePos + ' by ' + theBoard.turn);
+		theBoard.printBoard();
 		if (theBoard.isWon(theBoard.boardData, theBoard.turn)) {
 			// won
-			theBoard.printBoard();
-			theBoard.writeln('<b style="color:red">The winner is '
-					+ theBoard.turn + '! Congratulation!</b>');
-			theBoard.showInputButton(false);
-			theBoard.showResetButton(true);
+			if (this.isPlayersTurn()) {
+				theBoard.writeln('<b style="color:blue">The winner is '
+						+ theBoard.turn + '! Congratulation!</b>');
+			} else {
+				theBoard.writeln('<b style="color:red">The winner is '
+						+ theBoard.turn + '! Too bad!</b>');
+			}
+
+			this.gameStop();
 		} else {
 			// no winner
 			// change turn
 			theBoard.turn = theBoard.getOppositeTurn(theBoard.turn);
-			theBoard.printBoard();
+
 			if (theBoard.isBoardFull()) {
+				// the board is full
 				theBoard.writeln('The board is full, so game stopped!');
-				theBoard.showInputButton(false);
-				theBoard.showResetButton(true);
+				this.gameStop();
 			} else {
-				theBoard.writeln('Turn for ' + theBoard.turn
-						+ '. Move on which space...');
+				// ready for the next one
+				theBoard.writeTurn();
 				if (theBoard.turn != this.playerTurn) {
 
 					var bestMove = tttAI.queryNormalAIBestMove(theBoard.turn,
@@ -234,54 +291,37 @@ var theController = {
 	},
 	resetGame : function() {
 		theBoard.clearData();
-		theBoard.clearBoard();
+		theBoard.printBoard();
 		theBoard.showResetButton(false);
-		theBoard.showInputButton(false);
 		theBoard.showSelectSideButton(true);
-		theBoard.writeln('Turn for ' + theBoard.turn + '. Move on which space');
+		theBoard.writeTurn();
 	},
 	selcetSideO : function() {
 		theBoard.showResetButton(false);
-		theBoard.showInputButton(true);
 		theBoard.showSelectSideButton(false);
 		this.playerTurn = 'O';
-		theBoard.writeln('Turn for ' + theBoard.turn + '. Move on which space');
+		theBoard.writeTurn();
 	},
 	selcetSideX : function() {
 		theBoard.showResetButton(false);
-		theBoard.showInputButton(true);
 		theBoard.showSelectSideButton(false);
 		this.playerTurn = 'X';
-		theBoard.writeln('Turn for ' + theBoard.turn + '. Move on which space');
+		theBoard.writeTurn();
 		var bestMove = tttAI.queryNormalAIBestMove(theBoard.turn,
 				theBoard.boardData);
 		this.move(bestMove);
 	}
 };
 
-function gamestart() {
-	console.log('gamestart.');
+function gameStart() {
+	theBoard.init();
+	console.log('gameStart.');
 
-	// Get the inputButton field
-	var inputText = document.getElementById("input_text");
-	var inputButton = document.getElementById("input_button");
-	var resetButton = document.getElementById("reset_button");
-
-	// Execute a function when the user releases a key on the keyboard
-	inputText.addEventListener("keyup", function(event) {
-		// Cancel the default action, if needed
-		event.preventDefault();
-		// Number 13 is the "Enter" key on the keyboard
-		if (event.keyCode === 13) {
-			// Trigger the button element with a click
-			inputButton.click();
-		}
-	});
-
-	theBoard.printBoard();
-	theBoard.writeln('Turn for ' + theBoard.turn + '. Move on which space');
 }
 
+window.addEventListener("load", gameStart);
+
+/** Test Area * */
 function test() {
 	console.log(theBoard)
 	for ( var key in theBoard.boardData) {
@@ -303,9 +343,13 @@ function makeAAlmostWin() {
 	};
 	theBoard.turn = 'O';
 	theBoard.printBoard();
+	theBoard.writeTurn();
+	theController.playerTurn = 'O';
 }
 
 function makeAAlmostLost() {
+	theBoard.showResetButton(false);
+	theBoard.showSelectSideButton(false);
 	theBoard.boardData = {
 		'top-L' : 'O',
 		'top-M' : 'X',
@@ -319,9 +363,13 @@ function makeAAlmostLost() {
 	};
 	theBoard.turn = 'X';
 	theBoard.printBoard();
+	theBoard.writeTurn();
+	theController.playerTurn = 'X';
 }
 
 function makeNoOneIsGoingToWin() {
+	theBoard.showResetButton(false);
+	theBoard.showSelectSideButton(false);
 	theBoard.boardData = {
 		'top-L' : 'O',
 		'top-M' : 'X',
@@ -335,9 +383,13 @@ function makeNoOneIsGoingToWin() {
 	};
 	theBoard.turn = 'O';
 	theBoard.printBoard();
+	theBoard.writeTurn();
+	theController.playerTurn = 'O';
 }
 
 function makeAAlmostFull() {
+	theBoard.showResetButton(false);
+	theBoard.showSelectSideButton(false);
 	theBoard.boardData = {
 		'top-L' : 'O',
 		'top-M' : 'X',
@@ -351,6 +403,8 @@ function makeAAlmostFull() {
 	};
 	theBoard.turn = 'O';
 	theBoard.printBoard();
+	theBoard.writeTurn();
+	theController.playerTurn = 'O';
 }
 
 function testNormalAI() {
@@ -370,7 +424,6 @@ function testNormalAI() {
 	makeNoOneIsGoingToWin();
 	bestMove = tttAI.queryNormalAIBestMove(theBoard.turn, theBoard.boardData);
 	console.log('random step: ' + bestMove);
-}
 
-// test();
-window.addEventListener("load", gamestart);
+	theBoard.writeTurn();
+}

@@ -5,7 +5,7 @@
 <title>Tic_Tac_Toe</title>
 </head>
 <body>
-<style>
+	<style>
 #tic_tac_toe_board table {
 	width: 400px;
 	font-size: 20px;
@@ -17,19 +17,41 @@
 	width: 33.3%;
 }
 
+#tic_tac_toe_board td:hover {
+	background-color: yellow;
+}
+
 #tic_tac_toe_board td, #tic_tac_toe th {
 	border: 2px solid black;
 }
 </style>
 	<div id="input_div">
-		<button id="select_o_button" style='display: inline;' onclick="theController.selcetSideO()">Select Side 'O'</button>
-		<button id="select_x_button" style='display: inline;' onclick="theController.selcetSideX()">Select Side 'X'</button>
-		<input type="text" style='display: none;' id="input_text" value="" maxlength="10" autofocus>
-		<button id="input_button" style='display: none;' onclick="theController.enterMove()">Enter move!</button>
-		<button id="reset_button" style='display: none;' onclick="theController.resetGame()">Again!</button>
+		<button id="select_o_button" style='display: inline;'>Select
+			Side 'O'</button>
+		<button id="select_x_button" style='display: inline;'>Select
+			Side 'X'</button>
+		<button id="reset_button" style='display: none;'>Again!</button>
 	</div>
 	<div id='tic_tac_toe_message'></div>
-	<div id='tic_tac_toe_board'></div>
+	<div id='tic_tac_toe_board'>
+		<table>
+			<tr>
+				<td id='top-L'>=</td>
+				<td id='top-M'>=</td>
+				<td id='top-R'>=</td>
+			</tr>
+			<tr>
+				<td id='mid-L'>=</td>
+				<td id='mid-M'>=</td>
+				<td id='mid-R'>=</td>
+			</tr>
+			<tr>
+				<td id='low-L'>=</td>
+				<td id='low-M'>=</td>
+				<td id='low-R'>=</td>
+			</tr>
+		</table>
+	</div>
 
 	<script type='text/javascript' src='tic_tac_toe.js'></script>
 </body>
