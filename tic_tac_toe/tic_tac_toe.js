@@ -218,7 +218,10 @@ var tttAI = {
 	 * return a best move position
 	 */
 	queryNormalAIBestMove : function(turn, boardData) {
-		boardData = Object.assign({}, boardData); // real copy
+		if (Object.assign)
+			boardData = Object.assign({}, boardData); // real copy
+		else
+			boardData = JSON.parse(JSON.stringify(boardData));
 
 		// if win by one step
 		for ( var key in boardData) {
@@ -288,8 +291,11 @@ var tttAI = {
 	 */
 	minmaxAlgo : function(player, turn, move, boardData) {
 		this.minmaxAlgoCount++;
-		// 1. copy the situation and move a stey by an assuming tep.
-		boardData = Object.assign({}, boardData); // real copy
+		// 1. copy the situation and move a stey by an assuming step.
+		if (Object.assign)
+			boardData = Object.assign({}, boardData); // real copy
+		else
+			boardData = JSON.parse(JSON.stringify(boardData));
 		boardData[move] = turn;
 		debug('minmaxAlgo: \n' + JSON.stringify([ player, turn, move ]) + '\n'
 				+ theBoard.getPrettyBoardData(boardData));
@@ -610,7 +616,10 @@ function testPassByRef() {
 }
 
 function testCopyObj() {
-	boardData2 = Object.assign({}, theBoard.boardData); // real copy
+	if (Object.assign)
+		boardData = Object.assign({}, theBoard.boardData); // real copy
+	else
+		boardData = JSON.parse(JSON.stringify(theBoard.boardData));
 	theBoard.clearData();
 	theBoard.boardData['mid-M'] = 'O';
 
