@@ -1,3 +1,11 @@
+function log(str) {
+	console.log(str);
+}
+var DEBUG = false;
+function debug(str) {
+	if (DEBUG)
+		console.log(str);
+}
 var theBoard = {
 	space : '=',
 	turn : 'O',
@@ -20,7 +28,7 @@ var theBoard = {
 			this.boardTds[key] = td;
 			td.addEventListener("click", function(event) {
 				event.preventDefault();
-				console.log('click:' + this.id);
+				debug('click:' + this.id);
 				theController.clickMove(this.id);
 			});
 		}
@@ -29,6 +37,9 @@ var theBoard = {
 		var resetButton = document.getElementById("reset_button");
 		var selectObutton = document.getElementById("select_o_button");
 		var selectXbutton = document.getElementById("select_x_button");
+		var selectNormalRadio = document.getElementById("select_normal_radio");
+		var selectSmartRadio = document.getElementById("select_smart_radio");
+
 		selectObutton.addEventListener("click", function(event) {
 			theController.selcetSideO();
 		});
@@ -37,6 +48,12 @@ var theBoard = {
 		});
 		resetButton.addEventListener("click", function(event) {
 			theController.resetGame();
+		});
+		selectNormalRadio.addEventListener("click", function(event) {
+			theController.selectNormalAI();
+		});
+		selectSmartRadio.addEventListener("click", function(event) {
+			theController.selectSmartAI();
 		});
 
 		theBoard.printBoard();
@@ -53,12 +70,11 @@ var theBoard = {
 		ele.innerHTML = str;
 	},
 	writeTurn : function() {
-		this.writeln('Turn for ' + this.turn + '. Move on which space');
+		this.writeln('Turn for ' + this.turn + '.');
 	},
 	clearData : function() {
 		for ( var key in this.boardData) {
 			this.boardData[key] = '=';
-			this.turn = 'O';
 		}
 	},
 	createBoardStr : function() {
@@ -84,15 +100,24 @@ var theBoard = {
 		for (key in this.boardData) {
 			this.boardTds[key].innerHTML = this.boardData[key];
 		}
-
+	},
+	getPrettyBoardData : function(boardData) {
+		var str = '';
+		str += boardData['top-L'] + '|' + boardData['top-M'] + '|'
+				+ boardData['top-R'];
+		str += '\n' + boardData['mid-L'] + '|' + boardData['mid-M'] + '|'
+				+ boardData['mid-R'];
+		str += '\n' + boardData['low-L'] + '|' + boardData['low-M'] + '|'
+				+ boardData['low-R'];
+		return str;
 	},
 	/**
 	 * 
 	 * @param symbol
 	 * @returns if this turn won by the symbol
 	 */
-	isWon : function(boardData, symbol) {
-		var s = symbol;
+	isWon : function(boardData, turn) {
+		var s = turn;
 		// rows
 		if (boardData['top-L'] == s && boardData['top-M'] == s
 				&& boardData['top-R'] == s)
@@ -125,6 +150,13 @@ var theBoard = {
 	isBoardFull : function() {
 		for ( var key in theBoard.boardData) {
 			if (theBoard.boardData[key] == '=')
+				return false;
+		}
+		return true;
+	},
+	isAnotherBoardFull : function(boardData) {
+		for ( var key in boardData) {
+			if (boardData[key] == '=')
 				return false;
 		}
 		return true;
@@ -165,6 +197,23 @@ var theBoard = {
 };
 
 var tttAI = {
+	levels : {
+		'normal' : 1,
+		'smart' : 2
+	},
+	level : 1,
+	minmaxAlgoCount : 0,
+	/**
+	 * return a best move position
+	 */
+	queryAIBestMove : function(turn, boardData) {
+		switch (this.level) {
+		case this.levels.normal:
+			return this.queryNormalAIBestMove(turn, boardData);
+		case this.levels.smart:
+			return this.querySmartAIBestMove(turn, boardData);
+		}
+	},
 	/**
 	 * return a best move position
 	 */
@@ -193,10 +242,6 @@ var tttAI = {
 				boardData[key] = theBoard.space;
 			}
 		}
-		// choose the center
-		if (boardData['mid-M'] == theBoard.space) {
-			return 'mid-M';
-		}
 
 		// choose the corner
 		var corners = [ 'top-L', 'top-R', 'low-L', 'low-R' ];
@@ -212,6 +257,11 @@ var tttAI = {
 			return availCorArray[ranCorInt];
 		}
 
+		// choose the center
+		if (boardData['mid-M'] == theBoard.space) {
+			return 'mid-M';
+		}
+
 		// random index of the rest postions
 		var keyArray = [];
 		for ( var key in boardData) {
@@ -224,10 +274,112 @@ var tttAI = {
 		return keyArray[ranInt];
 	},
 	/**
-	 * return a best move position
+	 * Give the next step into this function to ask the score.
+	 * 
+	 * @param player
+	 *            the turn of the current player
+	 * @param turn
+	 *            next turn
+	 * @param move
+	 *            next move
+	 * @param boardData
+	 *            it would be copied
+	 * @return score
 	 */
-	querySmartAIBestMove : function(turn, boardData) {
-		// TODO
+	minmaxAlgo : function(player, turn, move, boardData) {
+		this.minmaxAlgoCount++;
+		// 1. copy the situation and move a stey by an assuming tep.
+		boardData = Object.assign({}, boardData); // real copy
+		boardData[move] = turn;
+		debug('minmaxAlgo: \n' + JSON.stringify([ player, turn, move ]) + '\n'
+				+ theBoard.getPrettyBoardData(boardData));
+
+		var score = 0;
+		// 2. if the result has shown then return the score.
+		score = this.score(player, boardData);
+		if (score != 0) {
+			return score;
+		}
+
+		// 3. if the board is full then return 0 that means it's draw.
+		if (theBoard.isAnotherBoardFull(boardData)) {
+			return score;
+		}
+
+		turn = theBoard.getOppositeTurn(turn);
+		var moveScore = {};
+		// 4. create a map of move-score, and call minmax algo for the next
+		// turn. In oreder to fetch each score of the available move from the
+		// next turn.
+		for ( var key in boardData) {
+			if (boardData[key] == theBoard.space) {
+				var thisScore = this.minmaxAlgo(player, turn, key, boardData);
+				moveScore[key] = thisScore;
+				debug('turn: ' + turn + ', move: ' + key + ', score: '
+						+ thisScore);
+			}
+		}
+		// 5. if this turn belongs to the player then return the maximum
+		// score within the map.
+		if (player == turn) {
+			var max = null;
+			for ( var key in moveScore) {
+				if (max == null || moveScore[key] > max) {
+					max = moveScore[key];
+				}
+			}
+			score = max;
+		}
+
+		// 6. if this turn belongs to the opponent then return the minimum
+		// score within the map.
+		if (player != turn) {
+			var min = null;
+			for ( var key in moveScore) {
+				if (min == null || moveScore[key] < min) {
+					min = moveScore[key];
+				}
+			}
+			score = min;
+		}
+		return score
+	},
+	score : function(player, boardData) {
+		// rules:
+		// 1. if player won then return 10.
+		// 2. if opponent won then return -10.
+		// 3. if draw then return 0.
+		if (theBoard.isWon(boardData, player)) {
+			return 10;
+		} else if (theBoard.isWon(boardData, theBoard.getOppositeTurn(player))) {
+			return -10;
+		} else {
+			return 0;
+		}
+	},
+	/**
+	 * return a best move position for this player
+	 */
+	querySmartAIBestMove : function(playerTurn, boardData) {
+		debug('querySmartAIBestMove: ' + playerTurn + '\n'
+				+ theBoard.getPrettyBoardData(boardData));
+		var max = null;
+		var bestMove = null;
+		for ( var move in boardData) {
+			if (boardData[move] == theBoard.space) {
+				var score = this.minmaxAlgo(playerTurn, playerTurn, move,
+						boardData);
+				if (max == null || score > max) {
+					max = score;
+					bestMove = move;
+				}
+			}
+		}
+		log('turn: ' + playerTurn + ', bestMove: ' + bestMove
+				+ ', minmaxAlgoCount: ' + this.minmaxAlgoCount + ', score: '
+				+ max);
+		this.minmaxAlgoCount = 0;
+		return bestMove;
 	}
 };
 
@@ -236,8 +388,14 @@ var theController = {
 	isPlayersTurn : function() {
 		return this.playerTurn == theBoard.turn;
 	},
+	gameStart : function() {
+		theBoard.init();
+		this.selectNormalAI();
+		log('gameStart.');
+
+	},
 	gameStop : function() {
-		this.playerTurn = "-";
+		this.playerTurn = "-";// No one's turn
 		theBoard.showResetButton(true);
 	},
 	/**
@@ -254,7 +412,7 @@ var theController = {
 	move : function(movePos) {
 		movePos = movePos.trim();
 		theBoard.boardData[movePos] = theBoard.turn; // move one step
-		console.log('move to ' + movePos + ' by ' + theBoard.turn);
+		log('move to ' + movePos + ' by ' + theBoard.turn);
 		theBoard.printBoard();
 		if (theBoard.isWon(theBoard.boardData, theBoard.turn)) {
 			// won
@@ -266,6 +424,8 @@ var theController = {
 						+ theBoard.turn + '! Too bad!</b>');
 			}
 
+			// expect the next turn will see the end
+			theBoard.turn = theBoard.getOppositeTurn(theBoard.turn);
 			this.gameStop();
 		} else {
 			// no winner
@@ -277,11 +437,10 @@ var theController = {
 				theBoard.writeln('The board is full, so game stopped!');
 				this.gameStop();
 			} else {
-				// ready for the next one
 				theBoard.writeTurn();
 				if (theBoard.turn != this.playerTurn) {
-
-					var bestMove = tttAI.queryNormalAIBestMove(theBoard.turn,
+					// ready for the player
+					var bestMove = tttAI.queryAIBestMove(theBoard.turn,
 							theBoard.boardData);
 					this.move(bestMove);
 
@@ -291,6 +450,7 @@ var theController = {
 	},
 	resetGame : function() {
 		theBoard.clearData();
+		theBoard.turn = 'O';
 		theBoard.printBoard();
 		theBoard.showResetButton(false);
 		theBoard.showSelectSideButton(true);
@@ -307,23 +467,25 @@ var theController = {
 		theBoard.showSelectSideButton(false);
 		this.playerTurn = 'X';
 		theBoard.writeTurn();
-		var bestMove = tttAI.queryNormalAIBestMove(theBoard.turn,
-				theBoard.boardData);
+		var bestMove = tttAI.queryAIBestMove(theBoard.turn, theBoard.boardData);
 		this.move(bestMove);
+	},
+	selectNormalAI : function() {
+		tttAI.level = tttAI.levels.normal;
+	},
+	selectSmartAI : function() {
+		tttAI.level = tttAI.levels.smart;
 	}
 };
 
-function gameStart() {
-	theBoard.init();
-	console.log('gameStart.');
-
-}
-
-window.addEventListener("load", gameStart);
+window.addEventListener("load", function(event) {
+	event.preventDefault();
+	theController.gameStart();
+});
 
 /** Test Area * */
 function test() {
-	console.log(theBoard)
+	log(theBoard)
 	for ( var key in theBoard.boardData) {
 		theBoard.writeln(key + ':' + theBoard.boardData[key])
 	}
@@ -411,19 +573,67 @@ function testNormalAI() {
 	makeAAlmostWin();
 	var bestMove = tttAI.queryNormalAIBestMove(theBoard.turn,
 			theBoard.boardData);
-	console.log('expect: ' + 'low-R');
-	console.log('best move: ' + bestMove);
-	console.log('low-R' == bestMove ? "past 'win by one step' "
+	log('expect: ' + 'low-R');
+	log('best move: ' + bestMove);
+	log('low-R' == bestMove ? "past 'win by one step' "
 			: "not past 'win by one step' ");
 	makeAAlmostLost();
 	bestMove = tttAI.queryNormalAIBestMove(theBoard.turn, theBoard.boardData);
-	console.log('expect: ' + 'low-R');
-	console.log('best move: ' + bestMove);
-	console.log('low-R' == bestMove ? "past 'stop win by one step' "
+	log('expect: ' + 'low-R');
+	log('best move: ' + bestMove);
+	log('low-R' == bestMove ? "past 'stop win by one step' "
 			: "not past 'stop win by one step' ");
 	makeNoOneIsGoingToWin();
 	bestMove = tttAI.queryNormalAIBestMove(theBoard.turn, theBoard.boardData);
-	console.log('random step: ' + bestMove);
+	log('random step: ' + bestMove);
 
 	theBoard.writeTurn();
+}
+
+function materialForTestPassByRef(boardData) {
+	boardData['mid-M'] = '=';
+}
+
+function testPassByRef() {
+	var origin = theBoard.boardData['mid-M'];
+	theBoard.boardData['mid-M'] = 'O';
+
+	log(theBoard.boardData);
+	materialForTestPassByRef(theBoard.boardData);
+	log(theBoard.boardData);
+
+	if (theBoard.boardData['mid-M'] == '=') {
+		log('the machanism is to pass a object into a function by ref');
+	}
+	// assert it is '='
+	theBoard.boardData['mid-M'] = origin;
+}
+
+function testCopyObj() {
+	boardData2 = Object.assign({}, theBoard.boardData); // real copy
+	theBoard.clearData();
+	theBoard.boardData['mid-M'] = 'O';
+
+	log(JSON.stringify(boardData2));
+	log('are the two data obj equal: '
+			+ (JSON.stringify(boardData2) === JSON
+					.stringify(theBoard.boardData)));
+	// recovery
+	theBoard.boardData = boardData2;
+}
+
+function testScore() {
+	var score = tttAI.score(theBoard.turn, theBoard.boardData);
+	log('score: ' + score);
+}
+
+function testQuerySmartAIBestMove() {
+	var bestMove = tttAI
+			.querySmartAIBestMove(theBoard.turn, theBoard.boardData);
+	log('bestMove: ' + bestMove);
+}
+
+function testGetPrettyBoardData() {
+	var str = theBoard.getPrettyBoardData(theBoard.boardData);
+	log(str);
 }
