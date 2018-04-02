@@ -297,8 +297,6 @@ var tttAI = {
 		else
 			boardData = JSON.parse(JSON.stringify(boardData));
 		boardData[move] = turn;
-		debug('minmaxAlgo: \n' + JSON.stringify([ player, turn, move ]) + '\n'
-				+ theBoard.getPrettyBoardData(boardData));
 
 		var score = 0;
 		// 2. if the result has shown then return the score.
@@ -321,8 +319,10 @@ var tttAI = {
 			if (boardData[key] == theBoard.space) {
 				var thisScore = this.minmaxAlgo(player, turn, key, boardData);
 				moveScore[key] = thisScore;
-				debug('turn: ' + turn + ', move: ' + key + ', score: '
-						+ thisScore);
+				if (DEBUG)
+					debug('minmaxAlgo: \nplayer: ' + player + ', turn: ' + turn
+							+ ', move: ' + key + ', score: ' + thisScore + '\n'
+							+ theBoard.getPrettyBoardData(boardData));
 			}
 		}
 		// 5. if this turn belongs to the player then return the maximum
@@ -369,22 +369,55 @@ var tttAI = {
 	querySmartAIBestMove : function(playerTurn, boardData) {
 		debug('querySmartAIBestMove: ' + playerTurn + '\n'
 				+ theBoard.getPrettyBoardData(boardData));
+		var startTime = Date.now();
+
+		// if the computer takes the first turn then just choose the corner for
+		// saving time
+		var corners = [ 'top-L', 'top-R', 'low-L', 'low-R' ];
+		var corLength = corners.length;
+		var availCorArray = [];
+		for (var i = 0; i < corLength; i++) {
+			if (boardData[corners[i]] == theBoard.space) {
+				availCorArray.push(corners[i]);
+			}
+		}
+		if (availCorArray.length == 4) {
+			var ranCorInt = Math.floor(Math.random() * availCorArray.length);
+			var bestMove = availCorArray[ranCorInt];
+			var cost = Date.now() - startTime;
+			log('turn: ' + playerTurn + ', bestMove: ' + bestMove
+					+ ', cost in millisec: ' + cost);
+			return bestMove;
+		}
+
+		// main code start
 		var max = null;
 		var bestMove = null;
 		for ( var move in boardData) {
 			if (boardData[move] == theBoard.space) {
 				var score = this.minmaxAlgo(playerTurn, playerTurn, move,
 						boardData);
+				if (DEBUG)
+					debug('minmaxAlgo: \nplayer: ' + playerTurn + ', turn: '
+							+ playerTurn + ', move: ' + key + ', score: '
+							+ score + '\n'
+							+ theBoard.getPrettyBoardData(boardData));
 				if (max == null || score > max) {
 					max = score;
 					bestMove = move;
 				}
 			}
 		}
+
+		// main code end
+		var cost = Date.now() - startTime;
 		log('turn: ' + playerTurn + ', bestMove: ' + bestMove
 				+ ', minmaxAlgoCount: ' + this.minmaxAlgoCount + ', score: '
-				+ max);
+				+ max + ', cost in millisec: ' + cost);
 		this.minmaxAlgoCount = 0;
+		// 1.239 sec if DEBUG == false
+		// turn: O, bestMove: top-L, minmaxAlgoCount: 549945, score: 0, cost in
+		// millisec: 177179
 		return bestMove;
 	}
 };
@@ -446,6 +479,7 @@ var theController = {
 				theBoard.writeTurn();
 				if (theBoard.turn != this.playerTurn) {
 					// ready for the player
+
 					var bestMove = tttAI.queryAIBestMove(theBoard.turn,
 							theBoard.boardData);
 					this.move(bestMove);
