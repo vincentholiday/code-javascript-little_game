@@ -7,18 +7,18 @@ function debug(str) {
 		console.log(str);
 }
 var theBoard = {
-	space : '=',
+	space : ' ',
 	turn : 'O',
 	boardData : {
-		'top-L' : '=',
-		'top-M' : '=',
-		'top-R' : '=',
-		'mid-L' : '=',
-		'mid-M' : '=',
-		'mid-R' : '=',
-		'low-L' : '=',
-		'low-M' : '=',
-		'low-R' : '='
+		'top-L' : ' ',
+		'top-M' : ' ',
+		'top-R' : ' ',
+		'mid-L' : ' ',
+		'mid-M' : ' ',
+		'mid-R' : ' ',
+		'low-L' : ' ',
+		'low-M' : ' ',
+		'low-R' : ' '
 	},
 	boardTds : {},
 	init : function() {
@@ -74,7 +74,7 @@ var theBoard = {
 	},
 	clearData : function() {
 		for ( var key in this.boardData) {
-			this.boardData[key] = '=';
+			this.boardData[key] = ' ';
 		}
 	},
 	createBoardStr : function() {
@@ -149,14 +149,14 @@ var theBoard = {
 	},
 	isBoardFull : function() {
 		for ( var key in theBoard.boardData) {
-			if (theBoard.boardData[key] == '=')
+			if (theBoard.boardData[key] == ' ')
 				return false;
 		}
 		return true;
 	},
 	isAnotherBoardFull : function(boardData) {
 		for ( var key in boardData) {
-			if (boardData[key] == '=')
+			if (boardData[key] == ' ')
 				return false;
 		}
 		return true;
@@ -287,9 +287,10 @@ var tttAI = {
 	 *            next move
 	 * @param boardData
 	 *            it would be copied
+	 * @param depth
 	 * @return score
 	 */
-	minmaxAlgo : function(player, turn, move, boardData) {
+	minmaxAlgo : function(player, turn, move, boardData, depth) {
 		this.minmaxAlgoCount++;
 		// 1. copy the situation and move a stey by an assuming step.
 		if (Object.assign)
@@ -300,7 +301,7 @@ var tttAI = {
 
 		var score = 0;
 		// 2. if the result has shown then return the score.
-		score = this.score(player, boardData);
+		score = this.score(player, boardData, depth);
 		if (score != 0) {
 			return score;
 		}
@@ -317,11 +318,13 @@ var tttAI = {
 		// next turn.
 		for ( var key in boardData) {
 			if (boardData[key] == theBoard.space) {
-				var thisScore = this.minmaxAlgo(player, turn, key, boardData);
+				var thisScore = this.minmaxAlgo(player, turn, key, boardData,
+						depth + 1);
 				moveScore[key] = thisScore;
 				if (DEBUG)
 					debug('minmaxAlgo: \nplayer: ' + player + ', turn: ' + turn
-							+ ', move: ' + key + ', score: ' + thisScore + '\n'
+							+ ', move: ' + key + ', score: ' + thisScore
+							+ ', depth: ' + (depth + 1) + '\n'
 							+ theBoard.getPrettyBoardData(boardData));
 			}
 		}
@@ -350,15 +353,15 @@ var tttAI = {
 		}
 		return score
 	},
-	score : function(player, boardData) {
+	score : function(player, boardData, depth) {
 		// rules:
 		// 1. if player won then return 10.
 		// 2. if opponent won then return -10.
 		// 3. if draw then return 0.
 		if (theBoard.isWon(boardData, player)) {
-			return 10;
+			return 10 - depth;
 		} else if (theBoard.isWon(boardData, theBoard.getOppositeTurn(player))) {
-			return -10;
+			return depth - 10;
 		} else {
 			return 0;
 		}
@@ -390,17 +393,17 @@ var tttAI = {
 			return bestMove;
 		}
 
-		// main code start
+		// cal the score for each possible move
 		var max = null;
 		var bestMove = null;
 		for ( var move in boardData) {
 			if (boardData[move] == theBoard.space) {
 				var score = this.minmaxAlgo(playerTurn, playerTurn, move,
-						boardData);
+						boardData, 0);
 				if (DEBUG)
 					debug('minmaxAlgo: \nplayer: ' + playerTurn + ', turn: '
 							+ playerTurn + ', move: ' + key + ', score: '
-							+ score + '\n'
+							+ score + ', depth: ' + 0 + '\n'
 							+ theBoard.getPrettyBoardData(boardData));
 				if (max == null || score > max) {
 					max = score;
@@ -409,9 +412,10 @@ var tttAI = {
 			}
 		}
 
-		// main code end
+		// end
+
 		var cost = Date.now() - startTime;
-		log('turn: ' + playerTurn + ', bestMove: ' + bestMove
+		log('Result: \nturn: ' + playerTurn + ', bestMove: ' + bestMove
 				+ ', minmaxAlgoCount: ' + this.minmaxAlgoCount + ', score: '
 				+ max + ', cost in millisec: ' + cost);
 		this.minmaxAlgoCount = 0;
@@ -536,12 +540,12 @@ function makeAAlmostWin() {
 		'top-L' : 'O',
 		'top-M' : 'X',
 		'top-R' : 'X',
-		'mid-L' : '=',
+		'mid-L' : ' ',
 		'mid-M' : 'O',
-		'mid-R' : '=',
-		'low-L' : '=',
-		'low-M' : '=',
-		'low-R' : '='
+		'mid-R' : ' ',
+		'low-L' : ' ',
+		'low-M' : ' ',
+		'low-R' : ' '
 	};
 	theBoard.turn = 'O';
 	theBoard.printBoard();
@@ -555,13 +559,13 @@ function makeAAlmostLost() {
 	theBoard.boardData = {
 		'top-L' : 'O',
 		'top-M' : 'X',
-		'top-R' : '=',
-		'mid-L' : '=',
+		'top-R' : ' ',
+		'mid-L' : ' ',
 		'mid-M' : 'O',
-		'mid-R' : '=',
-		'low-L' : '=',
-		'low-M' : '=',
-		'low-R' : '='
+		'mid-R' : ' ',
+		'low-L' : ' ',
+		'low-M' : ' ',
+		'low-R' : ' '
 	};
 	theBoard.turn = 'X';
 	theBoard.printBoard();
@@ -575,12 +579,12 @@ function makeNoOneIsGoingToWin() {
 	theBoard.boardData = {
 		'top-L' : 'O',
 		'top-M' : 'X',
-		'top-R' : '=',
-		'mid-L' : '=',
+		'top-R' : ' ',
+		'mid-L' : ' ',
 		'mid-M' : 'O',
-		'mid-R' : '=',
-		'low-L' : '=',
-		'low-M' : '=',
+		'mid-R' : ' ',
+		'low-L' : ' ',
+		'low-M' : ' ',
 		'low-R' : 'X'
 	};
 	theBoard.turn = 'O';
@@ -600,7 +604,7 @@ function makeAAlmostFull() {
 		'mid-M' : 'O',
 		'mid-R' : 'O',
 		'low-L' : 'O',
-		'low-M' : '=',
+		'low-M' : ' ',
 		'low-R' : 'X'
 	};
 	theBoard.turn = 'O';
@@ -631,7 +635,7 @@ function testNormalAI() {
 }
 
 function materialForTestPassByRef(boardData) {
-	boardData['mid-M'] = '=';
+	boardData['mid-M'] = ' ';
 }
 
 function testPassByRef() {
@@ -642,10 +646,10 @@ function testPassByRef() {
 	materialForTestPassByRef(theBoard.boardData);
 	log(theBoard.boardData);
 
-	if (theBoard.boardData['mid-M'] == '=') {
+	if (theBoard.boardData['mid-M'] == ' ') {
 		log('the machanism is to pass a object into a function by ref');
 	}
-	// assert it is '='
+	// assert it is ' '
 	theBoard.boardData['mid-M'] = origin;
 }
 
